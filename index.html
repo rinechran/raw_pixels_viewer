@@ -179,7 +179,7 @@
                     <option value="YUV444p">YUV444p (Planar)</option>
                     <option value="NV12">NV12 (Semi-Planar Y + UV)</option>
                     <option value="NV21">NV21 (Semi-Planar Y + VU)</option>
-                </select>
+                    <option value="YUYV">YUYV (Packed 4:2:2)</option> <option value="YVYU">YVYU (Packed 4:2:2)</option> </select>
             </div>
             <div>
                 <label for="widthInput">Width:</label>
@@ -294,10 +294,11 @@
                     bytesPerPixel = 1;
                     break;
                 // YUV formats bytesPerPixel is for calculations below, actual pixel reading is different.
+                // For Packed YUV422 (YUYV/YVYU), 2 pixels consume 4 bytes, so effectively 2 bytes/pixel
                 case 'YUV420p': case 'NV12': case 'NV21':
                     bytesPerPixel = 1.5; // Effective average BPP
                     break;
-                case 'YUV422p':
+                case 'YUV422p': case 'YUYV': case 'YVYU': // Added Packed YUV422 formats
                     bytesPerPixel = 2; // Effective average BPP
                     break;
                 case 'YUV444p':
@@ -310,12 +311,22 @@
 
             let effectiveStride = stride;
             // Calculate effectiveStride if not provided or invalid for packed formats
+            // For packed YUV422 formats like YUYV/YVYU, stride is 2 * width (since 2 bytes/pixel)
             if ((format.includes('RGB') || format.includes('GRA') || format === 'Grayscale' || format.includes('565') || format.includes('555') || format.includes('4444') || format.includes('1555')) && (isNaN(effectiveStride) || effectiveStride < width * bytesPerPixel)) {
                 effectiveStride = width * bytesPerPixel;
                 if (!isNaN(stride) && stride < width * bytesPerPixel) {
                     console.warn(`User stride ${stride} is less than calculated default stride ${width * bytesPerPixel} for format ${format}. Using default stride.`);
                 }
+            } else if (format === 'YUYV' || format === 'YVYU') {
+                // For YUYV/YVYU, stride should be width * 2 bytes/pixel
+                effectiveStride = width * 2;
+                if (!isNaN(stride) && stride >= width * 2) {
+                     effectiveStride = stride; // Use user-provided stride if valid
+                } else if (!isNaN(stride) && stride < width * 2) {
+                    console.warn(`User stride ${stride} is less than calculated default stride ${width * 2} for format ${format}. Using default stride.`);
+                }
             }
+
 
             // Validate raw data length
             let minimumRequiredBytes;
@@ -326,25 +337,25 @@
                 if (format === 'YUV444p') {
                     minimumRequiredBytes = yPlaneSize * 3;
                     expectedSizeForCeil = yPlaneSize * 3;
-                } else if (format === 'YUV422p') {
-                    // Cb and Cr planes are width/2 * height
+                } else if (format === 'YUV422p') { // Planar 4:2:2
                     minimumRequiredBytes = yPlaneSize + (Math.floor(width / 2) * height) * 2;
                     expectedSizeForCeil = yPlaneSize + (Math.ceil(width / 2) * height) * 2;
+                } else if (format === 'YUYV' || format === 'YVYU') { // Packed 4:2:2
+                    minimumRequiredBytes = width * height * 2; // Each pixel is 2 bytes on average (4 bytes per 2 pixels)
+                    expectedSizeForCeil = minimumRequiredBytes;
                 } else if (format === 'YUV420p') {
-                    // Cb and Cr planes are width/2 * height/2
                     minimumRequiredBytes = yPlaneSize + (Math.floor(width / 2) * Math.floor(height / 2)) * 2;
                     expectedSizeForCeil = yPlaneSize + (Math.ceil(width / 2) * Math.ceil(height / 2)) * 2;
                 } else if (format === 'NV12' || format === 'NV21') {
-                    // UV/VU plane is width * height/2
                     minimumRequiredBytes = yPlaneSize + width * Math.floor(height / 2);
                     expectedSizeForCeil = yPlaneSize + width * Math.ceil(height / 2);
                 }
             } else {
-                // For packed formats, minimum is to fill all rows up to the last pixel
+                // For packed RGB/Grayscale formats
                 minimumRequiredBytes = height * effectiveStride;
                 if (height > 0) minimumRequiredBytes = (height - 1) * effectiveStride + width * bytesPerPixel;
                 if (height === 0) minimumRequiredBytes = 0;
-                expectedSizeForCeil = minimumRequiredBytes; // For packed, it's typically exact
+                expectedSizeForCeil = minimumRequiredBytes;
             }
 
             if (rawDataUint8Array.length < minimumRequiredBytes) {
@@ -352,7 +363,7 @@
                 return;
             }
             if (rawDataUint8Array.length > expectedSizeForCeil + (width * 4) && rawDataUint8Array.length > minimumRequiredBytes + (width*4) &&
-                (format.includes('YUV') || format === 'NV12' || format === 'NV21')) {
+                (format.includes('YUV') || format.includes('NV') || format.includes('YUYV') || format.includes('YVYU'))) { // Updated for new YUV formats
                 console.warn(`File size ${rawDataUint8Array.length} is larger than typical for ${format} (expected ceil: ${expectedSizeForCeil}, min_floor: ${minimumRequiredBytes}). May contain extra data or padding.`);
             }
 
@@ -360,7 +371,8 @@
             const data = imageData.data; // This is the Uint8ClampedArray for canvas pixels
 
             let yPlane, uPlane, vPlane, uvPlane;
-            if (format.startsWith('YUV') || format.startsWith('NV')) {
+            // Only create YUV planes if it's a planar format
+            if (format.startsWith('YUV') && format.endsWith('p') || format.startsWith('NV')) {
                 const yPlaneSize = width * height;
                 let currentOffset = 0;
 
@@ -405,7 +417,8 @@
                     let R = 0, G = 0, B = 0, A = 255; // Default alpha to opaque
 
                     let rawDataOffset = 0;
-                    if (!(format.startsWith('YUV') || format.startsWith('NV'))) {
+                    // For packed formats (RGB, Grayscale, YUYV, YVYU), calculate rawDataOffset directly
+                    if (!(format.startsWith('YUV') && format.endsWith('p') || format.startsWith('NV'))) {
                         rawDataOffset = r * effectiveStride + c * bytesPerPixel;
                         if (rawDataOffset + bytesPerPixel > rawDataUint8Array.length) {
                             console.warn(`Read attempt beyond rawData length at row ${r}, col ${c} for format ${format}. Stopping current row processing.`);
@@ -560,6 +573,40 @@
                             B = Yv + 1.772 * Uv;
                             break;
                         }
+                        case 'YUYV': { // Packed YUV422: Y0 U0 Y1 V0
+                            const rawDataOffset = r * effectiveStride + Math.floor(c / 2) * 4; // 4 bytes per 2 pixels
+                            let Yv, Uv, Vv;
+                            if (c % 2 === 0) { // First pixel of the pair (Y0)
+                                Yv = rawDataUint8Array[rawDataOffset];
+                                Uv = rawDataUint8Array[rawDataOffset + 1] - 128;
+                                Vv = rawDataUint8Array[rawDataOffset + 3] - 128;
+                            } else { // Second pixel of the pair (Y1)
+                                Yv = rawDataUint8Array[rawDataOffset + 2];
+                                Uv = rawDataUint8Array[rawDataOffset + 1] - 128;
+                                Vv = rawDataUint8Array[rawDataOffset + 3] - 128;
+                            }
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
+                        case 'YVYU': { // Packed YUV422: Y0 V0 Y1 U0
+                            const rawDataOffset = r * effectiveStride + Math.floor(c / 2) * 4; // 4 bytes per 2 pixels
+                            let Yv, Uv, Vv;
+                            if (c % 2 === 0) { // First pixel of the pair (Y0)
+                                Yv = rawDataUint8Array[rawDataOffset];
+                                Vv = rawDataUint8Array[rawDataOffset + 1] - 128;
+                                Uv = rawDataUint8Array[rawDataOffset + 3] - 128;
+                            } else { // Second pixel of the pair (Y1)
+                                Yv = rawDataUint8Array[rawDataOffset + 2];
+                                Vv = rawDataUint8Array[rawDataOffset + 1] - 128;
+                                Uv = rawDataUint8Array[rawDataOffset + 3] - 128;
+                            }
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
                         default:
                             console.error("Unhandled format in pixel loop:", format);
                             continue;
@@ -571,8 +618,8 @@
                     data[canvasPixelIndex + 2] = Math.max(0, Math.min(255, B));
                     data[canvasPixelIndex + 3] = Math.max(0, Math.min(255, A));
                 }
-                // Warn and break if going beyond raw data length for packed formats
-                if (!(format.startsWith('YUV') || format.startsWith('NV')) && (r + 1) * effectiveStride > rawDataUint8Array.length && r < height - 1) {
+                // Warn and break if going beyond raw data length for packed formats (non-planar YUV included here)
+                if ((format.includes('RGB') || format.includes('GRA') || format === 'Grayscale' || format.includes('565') || format.includes('555') || format.includes('4444') || format.includes('1555') || format === 'YUYV' || format === 'YVYU') && (r + 1) * effectiveStride > rawDataUint8Array.length && r < height - 1) {
                     console.warn(`Stopping row processing early for ${format} at row ${r} due to insufficient data for the next stride. Data length: ${rawDataUint8Array.length}, effective stride: ${effectiveStride}`);
                     break;
                 }
