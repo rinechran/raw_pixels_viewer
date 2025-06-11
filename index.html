@@ -141,6 +141,16 @@
             margin-bottom: 0;
         }
     }
+
+    /* Style for Buy Me a Coffee button container */
+    .bmac-button-container {
+        text-align: center;
+        padding: 15px 20px; /* Adjust padding as needed */
+        background-color: #333; /* Match footer background */
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Optional: shadow on top */
+        z-index: 9; /* Lower than footer if footer has z-index */
+    }
 </style>
 </head>
 <body>
@@ -179,7 +189,9 @@
                     <option value="YUV444p">YUV444p (Planar)</option>
                     <option value="NV12">NV12 (Semi-Planar Y + UV)</option>
                     <option value="NV21">NV21 (Semi-Planar Y + VU)</option>
-                    <option value="YUYV">YUYV (Packed 4:2:2)</option> <option value="YVYU">YVYU (Packed 4:2:2)</option> </select>
+                    <option value="YUYV">YUYV (Packed 4:2:2)</option>
+                    <option value="YVYU">YVYU (Packed 4:2:2)</option>
+                </select>
             </div>
             <div>
                 <label for="widthInput">Width:</label>
@@ -195,6 +207,12 @@
             </div>
         </div>
     </footer>
+
+    <div class="bmac-button-container">
+        <a href="https://www.buymeacoffee.com/rinechran" target="_blank">
+            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 45px; width: 162px;" >
+        </a>
+    </div>
 
     <script>
         // State variables to hold the currently displayed image's data and parameters
@@ -359,7 +377,7 @@
             }
 
             if (rawDataUint8Array.length < minimumRequiredBytes) {
-                alert(`File size (${rawDataUint8Array.length} bytes) is too small. Expected at least ${minimumRequiredBytes} bytes for ${width}x${height} ${format} with stride ${effectiveStride}.`);
+                alert(`File size (${rawDataUint8Array.length} bytes) is too small. Expected at least ${minimumRequiredBytes} bytes for ${width}x{height} ${format} with stride ${effectiveStride}.`);
                 return;
             }
             if (rawDataUint8Array.length > expectedSizeForCeil + (width * 4) && rawDataUint8Array.length > minimumRequiredBytes + (width*4) &&
