@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAW Pixels Viewer</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh; /* Full viewport height */
+        margin: 0; /* Remove default margin */
+        background-color: #f0f0f0; /* Keep or set a background for the page */
+        color: #333;
+    }
+    h1 {
+        font-size: 2em;
+        margin-bottom: 0.5em;
+        text-align: center;
+    }
+    label, button {
+        display: block;
+        margin: 10px auto;
+        font-size: 1.2em;
+    }
+    input, select {
+        padding: 10px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        border: none;
+        width: calc(100% - 22px);
+    }
+    button {
+        cursor: pointer;
+        background: #0063B1;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 1em;
+        transition: background-color 0.3s ease;
+    }
+    button:hover {
+        background: #0052A5;
+    }
+    canvas {
+        display: block;
+        background-color: #fff;
+        margin: 20px auto;
+        max-width: 100%;
+        border: 1px solid #ccc;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .canvas-container {
+        flex-grow: 1; /* Takes up available vertical space */
+        display: flex;
+        justify-content: center; /* Center canvas horizontally */
+        align-items: center; /* Center canvas vertically */
+        padding: 20px;
+        overflow: auto; /* Add scrollbars if canvas is larger than container */
+    }
+
+    .controls-footer {
+        padding: 15px 20px;
+        background-color: #333;
+        color: white;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        z-index: 10;
+    }
+
+    .controls-footer h1, .controls-footer p {
+        color: white;
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+
+    .controls-footer label {
+        color: #f0f0f0;
+        font-size: 1em;
+        margin: 0 0 5px 0;
+        text-align: left;
+        display: block;
+    }
+
+    .controls-footer label[for="fileInput"] {
+        font-size: 1em;
+        margin: 0 0 5px 0;
+        text-align: left;
+    }
+    .controls-footer input[type="file"] {
+        width: 100%;
+        margin-bottom: 10px;
+        color: #333;
+        background-color: #fff;
+        border-radius: 5px;
+        padding: 5px;
+    }
+
+    .controls-horizontal-line {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .controls-horizontal-line > div {
+        display: flex;
+        flex-direction: column;
+        flex-basis: calc(25% - 10px);
+        min-width: 120px;
+        box-sizing: border-box;
+    }
+
+    .controls-horizontal-line input,
+    .controls-horizontal-line select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        margin-bottom: 0;
+        color: #333;
+        background-color: #fff;
+    }
+
+    @media (max-width: 768px) {
+        .controls-footer {
+            padding: 10px;
+        }
+        .controls-horizontal-line {
+            flex-direction: column;
+            gap: 0;
+        }
+        .controls-horizontal-line > div {
+            flex-basis: 100%;
+            margin-bottom: 10px;
+        }
+        .controls-horizontal-line > div:last-child {
+            margin-bottom: 0;
+        }
+    }
+</style>
+</head>
+<body>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <footer class="controls-footer">
+        <h1>RAW Pixels Viewer</h1>
+
+        <div> <label for="fileInput">Select Image File:</label>
+            <input type="file" id="fileInput"/>
+        </div>
+
+        <div class="controls-horizontal-line">
+            <div>
+                <label for="formatSelect">Select Format:</label>
+                <select id="formatSelect">
+                    <option value="RGB">RGB888 (24bit)</option>
+                    <option value="BGR">BGR888 (24bit)</option>
+                    <option value="GBR">GBR888 (24bit)</option>
+                    <option value="RGBA">RGBA32 (32bit)</option>
+                    <option value="BGRA">BGRA32 (32bit)</option>
+                    <option value="ARGB32">ARGB32 (32bit)</option>
+                    <option value="ABGR32">ABGR32 (32bit)</option>
+                    <option value="XRGB8888">XRGB8888 (32bit, X ignored)</option>
+                    <option value="RGB565">RGB565 (16bit)</option>
+                    <option value="BGR565">BGR565 (16bit)</option>
+                    <option value="RGB555">RGB555 (16bit - XRGB1555)</option>
+                    <option value="RGBA4444">RGBA4444 (16bit)</option>
+                    <option value="ARGB1555">ARGB1555 (16bit)</option>
+                    <option value="Grayscale">Grayscale (8bit)</option>
+                    <option value="YUV420p">YUV420p (Planar)</option>
+                    <option value="YUV422p">YUV422p (Planar)</option>
+                    <option value="YUV444p">YUV444p (Planar)</option>
+                    <option value="NV12">NV12 (Semi-Planar Y + UV)</option>
+                    <option value="NV21">NV21 (Semi-Planar Y + VU)</option>
+                </select>
+            </div>
+            <div>
+                <label for="widthInput">Width:</label>
+                <input type="number" id="widthInput" placeholder="Enter width"/>
+            </div>
+            <div>
+                <label for="heightInput">Height:</label>
+                <input type="number" id="heightInput" placeholder="Enter height"/>
+            </div>
+            <div>
+                <label for="strideInput">Stride (bytes, optional):</label>
+                <input type="number" id="strideInput" placeholder="e.g., width * bpp"/>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // State variables to hold the currently displayed image's data and parameters
+        let currentImageBuffer = null;
+        let currentImageWidth = 0;
+        let currentImageHeight = 0;
+        let currentImageFormat = '';
+        let currentImageStride = 0; // Initialize stride
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const fileInput = document.getElementById('fileInput');
+        const widthInput = document.getElementById('widthInput');
+        const heightInput = document.getElementById('heightInput');
+        const formatSelect = document.getElementById('formatSelect');
+        const strideInput = document.getElementById('strideInput');
+
+        /**
+         * Loads a default YUV420p image from 'resource/yuv420p.yuv' and displays it.
+         * Sets the UI controls to match the default image's parameters.
+         */
+        async function loadDefaultYUV() {
+            // Set default values for the UI controls
+            widthInput.value = '512';
+            heightInput.value = '512';
+            formatSelect.value = 'YUV420p';
+            strideInput.value = ''; // Clear stride for default YUV as it's typically derived
+
+            try {
+                const response = await fetch('resource/yuv420p.yuv');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${response.statusText || 'Unknown error'}. Make sure 'resource/yuv420p.yuv' exists.`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                const rawDataUint8Array = new Uint8Array(arrayBuffer);
+
+                // Update state variables for the default image
+                currentImageBuffer = rawDataUint8Array;
+                currentImageWidth = 512;
+                currentImageHeight = 512;
+                currentImageFormat = 'YUV420p';
+                currentImageStride = 0; // For planar formats, stride is effectively 0 or derived internally
+
+                // Call displayImage to render the default image
+                displayImage();
+
+            } catch (error) {
+                console.error('Failed to load or process default YUV file:', error);
+
+                // Clear canvas and display error message
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Ensure canvas has a size to draw the message if not already set
+                if (canvas.width === 0 || canvas.height === 0) {
+                    canvas.width = 300;
+                    canvas.height = 150;
+                }
+                ctx.fillStyle = 'red';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Failed to load default YUV.', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.fillText(error.message, canvas.width / 2, canvas.height / 2 + 10);
+                currentImageBuffer = null; // Clear buffer if default load fails
+            }
+        }
+
+        /**
+         * Processes the raw image data based on the selected format, width, height, and stride,
+         * and renders it onto the canvas.
+         * @param {Uint8Array} rawDataUint8Array - The raw image data as a Uint8Array.
+         * @param {number} width - The width of the image.
+         * @param {number} height - The height of the image.
+         * @param {string} format - The pixel format (e.g., 'RGB', 'YUV420p').
+         * @param {number} [stride=0] - Optional: The stride in bytes per row. If 0 or not provided, calculated.
+         */
+        function processImageData(rawDataUint8Array, width, height, format, stride = 0) {
+            if (!rawDataUint8Array || width <= 0 || height <= 0) {
+                console.error("Invalid data or dimensions for processing.");
+                return;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear before drawing
+
+            let bytesPerPixel;
+            switch(format) {
+                case 'RGB': case 'BGR': case 'GBR':
+                    bytesPerPixel = 3;
+                    break;
+                case 'RGBA': case 'BGRA': case 'ARGB32': case 'ABGR32': case 'XRGB8888':
+                    bytesPerPixel = 4;
+                    break;
+                case 'RGB565': case 'BGR565': case 'RGBA4444': case 'ARGB1555': case 'RGB555':
+                    bytesPerPixel = 2;
+                    break;
+                case 'Grayscale':
+                    bytesPerPixel = 1;
+                    break;
+                // YUV formats bytesPerPixel is for calculations below, actual pixel reading is different.
+                case 'YUV420p': case 'NV12': case 'NV21':
+                    bytesPerPixel = 1.5; // Effective average BPP
+                    break;
+                case 'YUV422p':
+                    bytesPerPixel = 2; // Effective average BPP
+                    break;
+                case 'YUV444p':
+                    bytesPerPixel = 3; // Effective average BPP
+                    break;
+                default:
+                    alert("Unsupported format: " + format);
+                    return;
+            }
+
+            let effectiveStride = stride;
+            // Calculate effectiveStride if not provided or invalid for packed formats
+            if ((format.includes('RGB') || format.includes('GRA') || format === 'Grayscale' || format.includes('565') || format.includes('555') || format.includes('4444') || format.includes('1555')) && (isNaN(effectiveStride) || effectiveStride < width * bytesPerPixel)) {
+                effectiveStride = width * bytesPerPixel;
+                if (!isNaN(stride) && stride < width * bytesPerPixel) {
+                    console.warn(`User stride ${stride} is less than calculated default stride ${width * bytesPerPixel} for format ${format}. Using default stride.`);
+                }
+            }
+
+            // Validate raw data length
+            let minimumRequiredBytes;
+            let expectedSizeForCeil;
+
+            if (format.startsWith('YUV') || format.startsWith('NV')) {
+                const yPlaneSize = width * height;
+                if (format === 'YUV444p') {
+                    minimumRequiredBytes = yPlaneSize * 3;
+                    expectedSizeForCeil = yPlaneSize * 3;
+                } else if (format === 'YUV422p') {
+                    // Cb and Cr planes are width/2 * height
+                    minimumRequiredBytes = yPlaneSize + (Math.floor(width / 2) * height) * 2;
+                    expectedSizeForCeil = yPlaneSize + (Math.ceil(width / 2) * height) * 2;
+                } else if (format === 'YUV420p') {
+                    // Cb and Cr planes are width/2 * height/2
+                    minimumRequiredBytes = yPlaneSize + (Math.floor(width / 2) * Math.floor(height / 2)) * 2;
+                    expectedSizeForCeil = yPlaneSize + (Math.ceil(width / 2) * Math.ceil(height / 2)) * 2;
+                } else if (format === 'NV12' || format === 'NV21') {
+                    // UV/VU plane is width * height/2
+                    minimumRequiredBytes = yPlaneSize + width * Math.floor(height / 2);
+                    expectedSizeForCeil = yPlaneSize + width * Math.ceil(height / 2);
+                }
+            } else {
+                // For packed formats, minimum is to fill all rows up to the last pixel
+                minimumRequiredBytes = height * effectiveStride;
+                if (height > 0) minimumRequiredBytes = (height - 1) * effectiveStride + width * bytesPerPixel;
+                if (height === 0) minimumRequiredBytes = 0;
+                expectedSizeForCeil = minimumRequiredBytes; // For packed, it's typically exact
+            }
+
+            if (rawDataUint8Array.length < minimumRequiredBytes) {
+                alert(`File size (${rawDataUint8Array.length} bytes) is too small. Expected at least ${minimumRequiredBytes} bytes for ${width}x${height} ${format} with stride ${effectiveStride}.`);
+                return;
+            }
+            if (rawDataUint8Array.length > expectedSizeForCeil + (width * 4) && rawDataUint8Array.length > minimumRequiredBytes + (width*4) &&
+                (format.includes('YUV') || format === 'NV12' || format === 'NV21')) {
+                console.warn(`File size ${rawDataUint8Array.length} is larger than typical for ${format} (expected ceil: ${expectedSizeForCeil}, min_floor: ${minimumRequiredBytes}). May contain extra data or padding.`);
+            }
+
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data; // This is the Uint8ClampedArray for canvas pixels
+
+            let yPlane, uPlane, vPlane, uvPlane;
+            if (format.startsWith('YUV') || format.startsWith('NV')) {
+                const yPlaneSize = width * height;
+                let currentOffset = 0;
+
+                function _safeSubarray(offset, length) {
+                    if (offset + length > rawDataUint8Array.length) {
+                        throw new Error(`Subarray [${offset}, ${offset+length}) out of bounds (total length: ${rawDataUint8Array.length}) for format ${format}`);
+                    }
+                    return rawDataUint8Array.subarray(offset, offset + length);
+                }
+
+                try {
+                    yPlane = _safeSubarray(currentOffset, yPlaneSize);
+                    currentOffset += yPlaneSize;
+
+                    if (format === 'YUV444p') {
+                        uPlane = _safeSubarray(currentOffset, yPlaneSize);
+                        currentOffset += yPlaneSize;
+                        vPlane = _safeSubarray(currentOffset, yPlaneSize);
+                    } else if (format === 'YUV422p') {
+                        const chromaWidth = Math.floor(width / 2);
+                        uPlane = _safeSubarray(currentOffset, chromaWidth * height);
+                        currentOffset += chromaWidth * height;
+                        vPlane = _safeSubarray(currentOffset, chromaWidth * height);
+                    } else if (format === 'YUV420p') {
+                        const chromaWidth = Math.floor(width / 2);
+                        const chromaHeight = Math.floor(height / 2);
+                        uPlane = _safeSubarray(currentOffset, chromaWidth * chromaHeight);
+                        currentOffset += chromaWidth * chromaHeight;
+                        vPlane = _safeSubarray(currentOffset, chromaWidth * chromaHeight);
+                    } else if (format === 'NV12' || format === 'NV21') {
+                        uvPlane = _safeSubarray(currentOffset, width * Math.floor(height / 2));
+                    }
+                } catch (error) {
+                    alert(`Error slicing YUV planes: ${error.message}. Check file integrity or dimensions.`);
+                    return;
+                }
+            }
+
+            for (let r = 0; r < height; r++) {
+                for (let c = 0; c < width; c++) {
+                    const canvasPixelIndex = (r * width + c) * 4;
+                    let R = 0, G = 0, B = 0, A = 255; // Default alpha to opaque
+
+                    let rawDataOffset = 0;
+                    if (!(format.startsWith('YUV') || format.startsWith('NV'))) {
+                        rawDataOffset = r * effectiveStride + c * bytesPerPixel;
+                        if (rawDataOffset + bytesPerPixel > rawDataUint8Array.length) {
+                            console.warn(`Read attempt beyond rawData length at row ${r}, col ${c} for format ${format}. Stopping current row processing.`);
+                            break; // Stop processing this row
+                        }
+                    }
+
+                    switch (format) {
+                        case 'RGB':
+                            R = rawDataUint8Array[rawDataOffset];
+                            G = rawDataUint8Array[rawDataOffset + 1];
+                            B = rawDataUint8Array[rawDataOffset + 2];
+                            break;
+                        case 'BGR':
+                            B = rawDataUint8Array[rawDataOffset];
+                            G = rawDataUint8Array[rawDataOffset + 1];
+                            R = rawDataUint8Array[rawDataOffset + 2];
+                            break;
+                        case 'GBR':
+                            G = rawDataUint8Array[rawDataOffset];
+                            B = rawDataUint8Array[rawDataOffset + 1];
+                            R = rawDataUint8Array[rawDataOffset + 2];
+                            break;
+                        case 'RGBA':
+                            R = rawDataUint8Array[rawDataOffset];
+                            G = rawDataUint8Array[rawDataOffset + 1];
+                            B = rawDataUint8Array[rawDataOffset + 2];
+                            A = rawDataUint8Array[rawDataOffset + 3];
+                            break;
+                        case 'BGRA':
+                            B = rawDataUint8Array[rawDataOffset];
+                            G = rawDataUint8Array[rawDataOffset + 1];
+                            R = rawDataUint8Array[rawDataOffset + 2];
+                            A = rawDataUint8Array[rawDataOffset + 3];
+                            break;
+                        case 'ARGB32':
+                            A = rawDataUint8Array[rawDataOffset];
+                            R = rawDataUint8Array[rawDataOffset + 1];
+                            G = rawDataUint8Array[rawDataOffset + 2];
+                            B = rawDataUint8Array[rawDataOffset + 3];
+                            break;
+                        case 'ABGR32':
+                            A = rawDataUint8Array[rawDataOffset];
+                            B = rawDataUint8Array[rawDataOffset + 1];
+                            G = rawDataUint8Array[rawDataOffset + 2];
+                            R = rawDataUint8Array[rawDataOffset + 3];
+                            break;
+                        case 'XRGB8888':
+                            R = rawDataUint8Array[rawDataOffset + 1];
+                            G = rawDataUint8Array[rawDataOffset + 2];
+                            B = rawDataUint8Array[rawDataOffset + 3];
+                            break; // A is ignored (X)
+                        case 'Grayscale':
+                            R = G = B = rawDataUint8Array[rawDataOffset];
+                            break;
+                        case 'RGB565': {
+                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            R = ((w >> 11) & 0x1F) * 255 / 31;
+                            G = ((w >> 5) & 0x3F) * 255 / 63;
+                            B = (w & 0x1F) * 255 / 31;
+                            break;
+                        }
+                        case 'BGR565': {
+                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            B = ((w >> 11) & 0x1F) * 255 / 31;
+                            G = ((w >> 5) & 0x3F) * 255 / 63;
+                            R = (w & 0x1F) * 255 / 31;
+                            break;
+                        }
+                        case 'RGB555': { // Corresponds to XRGB1555 typically
+                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            R = ((w >> 10) & 0x1F) * 255 / 31;
+                            G = ((w >> 5) & 0x1F) * 255 / 31;
+                            B = (w & 0x1F) * 255 / 31;
+                            // A is bit 15, often ignored for RGB555, but in ARGB1555 it's the alpha
+                            break;
+                        }
+                        case 'RGBA4444': {
+                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            R = (w & 0xF) * 255 / 15;
+                            G = ((w >> 4) & 0xF) * 255 / 15;
+                            B = ((w >> 8) & 0xF) * 255 / 15;
+                            A = ((w >> 12) & 0xF) * 255 / 15;
+                            break;
+                        }
+                        case 'ARGB1555': {
+                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            A = ((w >> 15) & 1) * 255;
+                            R = ((w >> 10) & 0x1F) * 255 / 31;
+                            G = ((w >> 5) & 0x1F) * 255 / 31;
+                            B = (w & 0x1F) * 255 / 31;
+                            break;
+                        }
+                        case 'YUV444p': {
+                            const yI = r * width + c;
+                            const Yv = yPlane[yI];
+                            const Uv = uPlane[yI] - 128;
+                            const Vv = vPlane[yI] - 128;
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
+                        case 'YUV422p': {
+                            const yI = r * width + c;
+                            const cX = Math.floor(c / 2); // Chroma X for YUV422 is at half resolution horizontally
+                            const uI = r * Math.floor(width / 2) + cX;
+                            const Yv = yPlane[yI];
+                            const Uv = uPlane[uI] - 128;
+                            const Vv = vPlane[uI] - 128;
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
+                        case 'YUV420p': {
+                            const yI = r * width + c;
+                            const cX = Math.floor(c / 2); // Chroma X for YUV420 is at half resolution horizontally
+                            const cY = Math.floor(r / 2); // Chroma Y for YUV420 is at half resolution vertically
+                            const uI = cY * Math.floor(width / 2) + cX;
+                            const Yv = yPlane[yI];
+                            const Uv = uPlane[uI] - 128;
+                            const Vv = vPlane[uI] - 128;
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
+                        case 'NV12': {
+                            const yI = r * width + c;
+                            const cX = Math.floor(c / 2);
+                            const cY = Math.floor(r / 2);
+                            const uvI = cY * width + cX * 2; // UV plane starts after Y, interleaved U then V
+                            const Yv = yPlane[yI];
+                            const Uv = uvPlane[uvI] - 128;
+                            const Vv = uvPlane[uvI + 1] - 128;
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
+                        case 'NV21': {
+                            const yI = r * width + c;
+                            const cX = Math.floor(c / 2);
+                            const cY = Math.floor(r / 2);
+                            const vuI = cY * width + cX * 2; // VU plane starts after Y, interleaved V then U
+                            const Yv = yPlane[yI];
+                            const Vv = uvPlane[vuI] - 128;
+                            const Uv = uvPlane[vuI + 1] - 128;
+                            R = Yv + 1.402 * Vv;
+                            G = Yv - 0.344136 * Uv - 0.714136 * Vv;
+                            B = Yv + 1.772 * Uv;
+                            break;
+                        }
+                        default:
+                            console.error("Unhandled format in pixel loop:", format);
+                            continue;
+                    }
+
+                    // Clamp values to 0-255 range and assign to imageData
+                    data[canvasPixelIndex] = Math.max(0, Math.min(255, R));
+                    data[canvasPixelIndex + 1] = Math.max(0, Math.min(255, G));
+                    data[canvasPixelIndex + 2] = Math.max(0, Math.min(255, B));
+                    data[canvasPixelIndex + 3] = Math.max(0, Math.min(255, A));
+                }
+                // Warn and break if going beyond raw data length for packed formats
+                if (!(format.startsWith('YUV') || format.startsWith('NV')) && (r + 1) * effectiveStride > rawDataUint8Array.length && r < height - 1) {
+                    console.warn(`Stopping row processing early for ${format} at row ${r} due to insufficient data for the next stride. Data length: ${rawDataUint8Array.length}, effective stride: ${effectiveStride}`);
+                    break;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        /**
+         * Orchestrates the display of an image, either from a new file input or by reprocessing
+         * the currently loaded image data with updated parameters from the UI.
+         */
+        function displayImage() {
+            const width = parseInt(widthInput.value, 10);
+            const height = parseInt(heightInput.value, 10);
+            const format = formatSelect.value;
+            const stride = parseInt(strideInput.value, 10); // Will be NaN if empty or invalid
+
+            if (isNaN(width) || width <= 0 || isNaN(height) || height <= 0) {
+                if (fileInput.files.length > 0 || currentImageBuffer) { // Only alert if there's a file or data
+                    alert('Please enter valid width and height (must be positive numbers).');
+                }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'gray';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Enter valid dimensions.', canvas.width / 2, canvas.height / 2);
+                currentImageBuffer = null; // Clear buffer if dimensions are invalid
+                return;
+            }
+
+            if (fileInput.files.length > 0) {
+                // User has selected a new file
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const newBuffer = new Uint8Array(e.target.result);
+                    // Update global state
+                    currentImageBuffer = newBuffer;
+                    currentImageWidth = width;
+                    currentImageHeight = height;
+                    currentImageFormat = format;
+                    currentImageStride = isNaN(stride) ? 0 : stride; // Store effective stride or 0 if derived
+
+                    processImageData(currentImageBuffer, currentImageWidth, currentImageHeight, currentImageFormat, currentImageStride);
+                    // fileInput.value = ''; // REMOVED: Keep file name visible
+                };
+
+                reader.onerror = function() {
+                    alert('Error reading file. Please check the file and permissions.');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'red';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('Error reading file.', canvas.width / 2, canvas.height / 2);
+                    currentImageBuffer = null; // Clear state on error
+                };
+                reader.readAsArrayBuffer(file);
+            } else if (currentImageBuffer) {
+                // No new file selected, but we have a current buffer (default or previous upload)
+                // Reprocess currentImageBuffer with potentially updated parameters from input fields
+                currentImageWidth = width;
+                currentImageHeight = height;
+                currentImageFormat = format;
+                currentImageStride = isNaN(stride) ? 0 : stride; // Store effective stride or 0 if derived
+
+                processImageData(currentImageBuffer, currentImageWidth, currentImageHeight, currentImageFormat, currentImageStride);
+            } else {
+                // No file in fileInput and no currentImageBuffer (e.g. default load failed and no user file yet)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'gray';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Please select an image file.', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', () => {
+            // When a new file is selected, reset width/height to 1 to allow re-evaluation
+            widthInput.value = '1';
+            heightInput.value = '1';
+            strideInput.value = ''; // Clear stride as it might be irrelevant for new file
+            displayImage();
+        });
+
+        formatSelect.addEventListener('change', displayImage);
+        widthInput.addEventListener('input', displayImage);
+        heightInput.addEventListener('input', displayImage);
+        strideInput.addEventListener('input', displayImage);
+
+        // Load default YUV image when the DOM is fully loaded
+        window.addEventListener('DOMContentLoaded', loadDefaultYUV);
+    </script>
+</body>
+</html>
