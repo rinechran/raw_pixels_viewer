@@ -45,22 +45,44 @@
         background: #0052A5;
     }
     canvas {
-        display: block;
         background-color: #fff;
-        margin: 20px auto;
-        max-width: 100%;
         border: 1px solid #ccc;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        max-width: calc(100vw - 40px); /* Max width of viewport minus padding */
+        max-height: calc(100vh - 350px); /* Approx 350px for footer + pixel info */
+        object-fit: contain; /* Scales the image down to fit, maintaining aspect ratio */
     }
 
-    .canvas-container {
-        flex-grow: 1; /* Takes up available vertical space */
+    .canvas-wrapper { /* New wrapper for canvas to center it when zoomed */
         display: flex;
-        justify-content: center; /* Center canvas horizontally */
-        align-items: center; /* Center canvas vertically */
+        justify-content: center;
+        align-items: center;
+        flex-grow: 1; /* Allows it to take available vertical space */
         padding: 20px;
-        overflow: auto; /* Add scrollbars if canvas is larger than container */
+        overflow: auto; /* Add scrollbars if canvas (even scaled) is larger than container */
+        position: relative; /* Needed for positioning .pixel-info inside it */
+        min-height: 150px; /* Minimum height for the canvas area */
     }
+
+
+    /* Pixel info display */
+    .pixel-info {
+        background-color: white;
+        color: black;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-family: 'Consolas', monospace;
+        font-size: 0.9em;
+        position: absolute; /* Position relative to the canvas-wrapper */
+        left: 20px; /* Aligns to the left padding of canvas-wrapper */
+        top: 20px; /* Aligns to the top padding of canvas-wrapper */
+        white-space: nowrap;
+        pointer-events: none; /* Allows mouse events to pass through to canvas */
+        z-index: 100; /* Ensure it's on top */
+        display: none; /* Hidden by default */
+        border: 1px solid #ccc; /* Add a subtle border */
+    }
+
 
     .controls-footer {
         padding: 15px 20px;
@@ -68,6 +90,7 @@
         color: white;
         box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
         z-index: 10;
+        flex-shrink: 0; /* Prevent footer from shrinking */
     }
 
     .controls-footer h1, .controls-footer p {
@@ -85,18 +108,44 @@
         display: block;
     }
 
-    .controls-footer label[for="fileInput"] {
-        font-size: 1em;
-        margin: 0 0 5px 0;
-        text-align: left;
+    /* Combined container for file input, offset, and BMac button */
+    .top-controls-line {
+        display: flex;
+        flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+        align-items: flex-end; /* Aligns items to the bottom of the line */
+        gap: 10px; /* Space between input groups */
+        margin-bottom: 15px;
     }
-    .controls-footer input[type="file"] {
+
+    .top-controls-line > div {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1; /* Allows inputs to take available space */
+        min-width: 150px; /* Ensure inputs don't become too small */
+    }
+    /* Specific width adjustment for file input to allow more room for offset/zoom */
+    .top-controls-line > div:nth-child(1) { /* File input wrapper */
+        flex-basis: 30%; /* Give file input a bit more room */
+    }
+    .top-controls-line > div:nth-child(2), /* Offset input wrapper */
+    .top-controls-line > div:nth-child(3) { /* Zoom input wrapper */
+        flex-basis: 20%; /* Give offset and zoom inputs a bit more room, or equally distribute */
+    }
+
+
+    .top-controls-line input[type="file"],
+    .top-controls-line input[type="number"] {
         width: 100%;
-        margin-bottom: 10px;
-        color: #333;
-        background-color: #fff;
-        border-radius: 5px;
-        padding: 5px;
+        box-sizing: border-box;
+        margin-bottom: 0; /* Remove extra margin below input */
+    }
+
+    /* Style for Buy Me a Coffee button wrapper */
+    .bmac-button-wrapper {
+        text-align: right;
+        flex-shrink: 0; /* Prevents shrinking */
+        padding-top: 25px; /* Adjust to align with input baselines */
+        min-width: 162px; /* Fixed width for the button image */
     }
 
     .controls-horizontal-line {
@@ -114,6 +163,7 @@
         min-width: 120px;
         box-sizing: border-box;
     }
+    /* Removed specific flex-basis for zoom input as it's moved */
 
     .controls-horizontal-line input,
     .controls-horizontal-line select {
@@ -129,6 +179,29 @@
         .controls-footer {
             padding: 10px;
         }
+        .top-controls-line {
+            flex-direction: column; /* Stack vertically on small screens */
+            align-items: stretch;
+        }
+        .top-controls-line > div {
+            margin-bottom: 10px; /* Add space between stacked items */
+        }
+        .top-controls-line > div:last-child {
+            margin-bottom: 0;
+        }
+        /* Specific widths for file, offset, zoom should revert to full width on small screens */
+        .top-controls-line > div:nth-child(1),
+        .top-controls-line > div:nth-child(2),
+        .top-controls-line > div:nth-child(3) {
+            flex-basis: 100%;
+        }
+
+        .bmac-button-wrapper {
+            text-align: center;
+            padding-top: 0;
+            margin-top: 10px; /* Space from input above it */
+            min-width: unset; /* Remove fixed width on small screens */
+        }
         .controls-horizontal-line {
             flex-direction: column;
             gap: 0;
@@ -140,30 +213,50 @@
         .controls-horizontal-line > div:last-child {
             margin-bottom: 0;
         }
-    }
-
-    /* Style for Buy Me a Coffee button container */
-    .bmac-button-container {
-        text-align: center;
-        padding: 15px 20px; /* Adjust padding as needed */
-        background-color: #333; /* Match footer background */
-        color: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Optional: shadow on top */
-        z-index: 9; /* Lower than footer if footer has z-index */
+        .pixel-info {
+            font-size: 0.8em;
+            padding: 6px 10px;
+            top: 10px; /* Adjust position for small screens */
+            left: 10px;
+        }
     }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-T52592T23E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-T52592T23E');
+</script>
 </head>
 <body>
 
-    <div class="canvas-container">
+    <div class="canvas-wrapper">
+        <div class="pixel-info" id="pixelInfo"></div>
         <canvas id="canvas"></canvas>
     </div>
 
     <footer class="controls-footer">
         <h1>RAW Pixels Viewer</h1>
 
-        <div> <label for="fileInput">Select Image File:</label>
-            <input type="file" id="fileInput"/>
+        <div class="top-controls-line">
+            <div>
+                <label for="fileInput">Select Image File:</label>
+                <input type="file" id="fileInput"/>
+            </div>
+            <div>
+                <label for="offsetInput">Offset (bytes):</label>
+                <input type="number" id="offsetInput" value="0" min="0" placeholder="Start offset in bytes"/>
+            </div>
+            <div> <label for="zoomInput">Zoom (%):</label>
+                <input type="number" id="zoomInput" value="100" min="10" max="800" step="10"/>
+            </div>
+            <div class="bmac-button-wrapper">
+                <a href="https://www.buymeacoffee.com/rinechran" target="_blank">
+                    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 45px; width: 162px;" >
+                </a>
+            </div>
         </div>
 
         <div class="controls-horizontal-line">
@@ -205,14 +298,8 @@
                 <label for="strideInput">Stride (bytes, optional):</label>
                 <input type="number" id="strideInput" placeholder="e.g., width * bpp"/>
             </div>
-        </div>
+            </div>
     </footer>
-
-    <div class="bmac-button-container">
-        <a href="https://www.buymeacoffee.com/rinechran" target="_blank">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 45px; width: 162px;" >
-        </a>
-    </div>
 
     <script>
         // State variables to hold the currently displayed image's data and parameters
@@ -221,6 +308,8 @@
         let currentImageHeight = 0;
         let currentImageFormat = '';
         let currentImageStride = 0; // Initialize stride
+        let currentImageOffset = 0; // Initialize offset
+        let currentZoomLevel = 100; // Initialize zoom level
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -229,6 +318,9 @@
         const heightInput = document.getElementById('heightInput');
         const formatSelect = document.getElementById('formatSelect');
         const strideInput = document.getElementById('strideInput');
+        const offsetInput = document.getElementById('offsetInput');
+        const zoomInput = document.getElementById('zoomInput'); // Get zoom input
+        const pixelInfo = document.getElementById('pixelInfo');
 
         /**
          * Loads a default YUV420p image from 'resource/yuv420p.yuv' and displays it.
@@ -240,6 +332,8 @@
             heightInput.value = '512';
             formatSelect.value = 'YUV420p';
             strideInput.value = ''; // Clear stride for default YUV as it's typically derived
+            offsetInput.value = '0'; // Set default offset to 0
+            zoomInput.value = '100'; // Set default zoom to 100%
 
             try {
                 const response = await fetch('resource/yuv420p.yuv');
@@ -255,6 +349,8 @@
                 currentImageHeight = 512;
                 currentImageFormat = 'YUV420p';
                 currentImageStride = 0; // For planar formats, stride is effectively 0 or derived internally
+                currentImageOffset = 0; // Set default offset to 0
+                currentZoomLevel = 100; // Set default zoom
 
                 // Call displayImage to render the default image
                 displayImage();
@@ -263,12 +359,13 @@
                 console.error('Failed to load or process default YUV file:', error);
 
                 // Clear canvas and display error message
+                // The canvas width/height are now controlled by displayImage and CSS.
+                // We ensure minimal size for the message.
+                canvas.width = 300;
+                canvas.height = 150;
+                canvas.style.width = '300px'; // Set CSS width
+                canvas.style.height = '150px'; // Set CSS height
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Ensure canvas has a size to draw the message if not already set
-                if (canvas.width === 0 || canvas.height === 0) {
-                    canvas.width = 300;
-                    canvas.height = 150;
-                }
                 ctx.fillStyle = 'red';
                 ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
@@ -286,16 +383,30 @@
          * @param {number} height - The height of the image.
          * @param {string} format - The pixel format (e.g., 'RGB', 'YUV420p').
          * @param {number} [stride=0] - Optional: The stride in bytes per row. If 0 or not provided, calculated.
+         * @param {number} [offset=0] - Optional: The byte offset to start reading from.
+         * @param {number} [zoom=100] - Optional: Zoom level in percentage.
          */
-        function processImageData(rawDataUint8Array, width, height, format, stride = 0) {
-            if (!rawDataUint8Array || width <= 0 || height <= 0) {
-                console.error("Invalid data or dimensions for processing.");
+        function processImageData(rawDataUint8Array, width, height, format, stride = 0, offset = 0, zoom = 100) {
+            const displayWidth = Math.max(1, parseInt(width, 10));
+            const displayHeight = Math.max(1, parseInt(height, 10));
+
+            // Set canvas intrinsic dimensions (actual pixel resolution)
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+
+            // Set canvas display dimensions (CSS pixels) based on zoom level
+            canvas.style.width = `${displayWidth * (zoom / 100)}px`;
+            canvas.style.height = `${displayHeight * (zoom / 100)}px`;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear before drawing
+
+            if (!rawDataUint8Array || rawDataUint8Array.length === 0 || isNaN(displayWidth) || isNaN(displayHeight)) {
+                ctx.fillStyle = 'gray';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No image data or invalid dimensions.', canvas.width / 2, canvas.height / 2);
                 return;
             }
-
-            canvas.width = width;
-            canvas.height = height;
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear before drawing
 
             let bytesPerPixel;
             switch(format) {
@@ -311,211 +422,183 @@
                 case 'Grayscale':
                     bytesPerPixel = 1;
                     break;
-                // YUV formats bytesPerPixel is for calculations below, actual pixel reading is different.
-                // For Packed YUV422 (YUYV/YVYU), 2 pixels consume 4 bytes, so effectively 2 bytes/pixel
                 case 'YUV420p': case 'NV12': case 'NV21':
                     bytesPerPixel = 1.5; // Effective average BPP
                     break;
-                case 'YUV422p': case 'YUYV': case 'YVYU': // Added Packed YUV422 formats
+                case 'YUV422p': case 'YUYV': case 'YVYU':
                     bytesPerPixel = 2; // Effective average BPP
                     break;
                 case 'YUV444p':
                     bytesPerPixel = 3; // Effective average BPP
                     break;
                 default:
-                    alert("Unsupported format: " + format);
+                    console.error("Unsupported format: " + format);
+                    ctx.fillStyle = 'red';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Unsupported format.', canvas.width / 2, canvas.height / 2);
                     return;
             }
 
             let effectiveStride = stride;
-            // Calculate effectiveStride if not provided or invalid for packed formats
-            // For packed YUV422 formats like YUYV/YVYU, stride is 2 * width (since 2 bytes/pixel)
-            if ((format.includes('RGB') || format.includes('GRA') || format === 'Grayscale' || format.includes('565') || format.includes('555') || format.includes('4444') || format.includes('1555')) && (isNaN(effectiveStride) || effectiveStride < width * bytesPerPixel)) {
-                effectiveStride = width * bytesPerPixel;
-                if (!isNaN(stride) && stride < width * bytesPerPixel) {
-                    console.warn(`User stride ${stride} is less than calculated default stride ${width * bytesPerPixel} for format ${format}. Using default stride.`);
+            if ((format.includes('RGB') || format.includes('GRA') || format === 'Grayscale' || format.includes('565') || format.includes('555') || format.includes('4444') || format.includes('1555')) && (isNaN(effectiveStride) || effectiveStride < displayWidth * bytesPerPixel)) {
+                effectiveStride = displayWidth * bytesPerPixel;
+                if (!isNaN(stride) && stride < displayWidth * bytesPerPixel) {
+                    console.warn(`User stride ${stride} is less than calculated default stride ${displayWidth * bytesPerPixel} for format ${format}. Using default stride.`);
                 }
             } else if (format === 'YUYV' || format === 'YVYU') {
-                // For YUYV/YVYU, stride should be width * 2 bytes/pixel
-                effectiveStride = width * 2;
-                if (!isNaN(stride) && stride >= width * 2) {
-                     effectiveStride = stride; // Use user-provided stride if valid
-                } else if (!isNaN(stride) && stride < width * 2) {
-                    console.warn(`User stride ${stride} is less than calculated default stride ${width * 2} for format ${format}. Using default stride.`);
+                effectiveStride = displayWidth * 2;
+                if (!isNaN(stride) && stride >= displayWidth * 2) {
+                     effectiveStride = stride;
+                } else if (!isNaN(stride) && stride < displayWidth * 2) {
+                    console.warn(`User stride ${stride} is less than calculated default stride ${displayWidth * 2} for format ${format}. Using default stride.`);
                 }
             }
 
-
-            // Validate raw data length
-            let minimumRequiredBytes;
-            let expectedSizeForCeil;
-
-            if (format.startsWith('YUV') || format.startsWith('NV')) {
-                const yPlaneSize = width * height;
-                if (format === 'YUV444p') {
-                    minimumRequiredBytes = yPlaneSize * 3;
-                    expectedSizeForCeil = yPlaneSize * 3;
-                } else if (format === 'YUV422p') { // Planar 4:2:2
-                    minimumRequiredBytes = yPlaneSize + (Math.floor(width / 2) * height) * 2;
-                    expectedSizeForCeil = yPlaneSize + (Math.ceil(width / 2) * height) * 2;
-                } else if (format === 'YUYV' || format === 'YVYU') { // Packed 4:2:2
-                    minimumRequiredBytes = width * height * 2; // Each pixel is 2 bytes on average (4 bytes per 2 pixels)
-                    expectedSizeForCeil = minimumRequiredBytes;
-                } else if (format === 'YUV420p') {
-                    minimumRequiredBytes = yPlaneSize + (Math.floor(width / 2) * Math.floor(height / 2)) * 2;
-                    expectedSizeForCeil = yPlaneSize + (Math.ceil(width / 2) * Math.ceil(height / 2)) * 2;
-                } else if (format === 'NV12' || format === 'NV21') {
-                    minimumRequiredBytes = yPlaneSize + width * Math.floor(height / 2);
-                    expectedSizeForCeil = yPlaneSize + width * Math.ceil(height / 2);
-                }
-            } else {
-                // For packed RGB/Grayscale formats
-                minimumRequiredBytes = height * effectiveStride;
-                if (height > 0) minimumRequiredBytes = (height - 1) * effectiveStride + width * bytesPerPixel;
-                if (height === 0) minimumRequiredBytes = 0;
-                expectedSizeForCeil = minimumRequiredBytes;
-            }
-
-            if (rawDataUint8Array.length < minimumRequiredBytes) {
-                alert(`File size (${rawDataUint8Array.length} bytes) is too small. Expected at least ${minimumRequiredBytes} bytes for ${width}x{height} ${format} with stride ${effectiveStride}.`);
-                return;
-            }
-            if (rawDataUint8Array.length > expectedSizeForCeil + (width * 4) && rawDataUint8Array.length > minimumRequiredBytes + (width*4) &&
-                (format.includes('YUV') || format.includes('NV') || format.includes('YUYV') || format.includes('YVYU'))) { // Updated for new YUV formats
-                console.warn(`File size ${rawDataUint8Array.length} is larger than typical for ${format} (expected ceil: ${expectedSizeForCeil}, min_floor: ${minimumRequiredBytes}). May contain extra data or padding.`);
-            }
-
-            const imageData = ctx.createImageData(width, height);
-            const data = imageData.data; // This is the Uint8ClampedArray for canvas pixels
+            const dataToProcess = rawDataUint8Array.subarray(offset);
 
             let yPlane, uPlane, vPlane, uvPlane;
-            // Only create YUV planes if it's a planar format
-            if (format.startsWith('YUV') && format.endsWith('p') || format.startsWith('NV')) {
-                const yPlaneSize = width * height;
-                let currentOffset = 0;
+            const yPlaneSize = displayWidth * displayHeight;
+            let currentOffsetInSubarray = 0;
 
-                function _safeSubarray(offset, length) {
-                    if (offset + length > rawDataUint8Array.length) {
-                        throw new Error(`Subarray [${offset}, ${offset+length}) out of bounds (total length: ${rawDataUint8Array.length}) for format ${format}`);
+            try {
+                if (format.startsWith('YUV') && format.endsWith('p') || format.startsWith('NV')) {
+                    if (dataToProcess.length < currentOffsetInSubarray + yPlaneSize) {
+                        console.warn(`Not enough data for Y plane for ${format}. Data length: ${dataToProcess.length}, required: ${currentOffsetInSubarray + yPlaneSize}`);
                     }
-                    return rawDataUint8Array.subarray(offset, offset + length);
-                }
-
-                try {
-                    yPlane = _safeSubarray(currentOffset, yPlaneSize);
-                    currentOffset += yPlaneSize;
+                    yPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + yPlaneSize);
+                    currentOffsetInSubarray += yPlaneSize;
 
                     if (format === 'YUV444p') {
-                        uPlane = _safeSubarray(currentOffset, yPlaneSize);
-                        currentOffset += yPlaneSize;
-                        vPlane = _safeSubarray(currentOffset, yPlaneSize);
+                        if (dataToProcess.length < currentOffsetInSubarray + yPlaneSize * 2) {
+                            console.warn(`Not enough data for U/V planes for ${format}. Data length: ${dataToProcess.length}, required: ${currentOffsetInSubarray + yPlaneSize * 2}`);
+                        }
+                        uPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + yPlaneSize);
+                        currentOffsetInSubarray += yPlaneSize;
+                        vPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + yPlaneSize);
                     } else if (format === 'YUV422p') {
-                        const chromaWidth = Math.floor(width / 2);
-                        uPlane = _safeSubarray(currentOffset, chromaWidth * height);
-                        currentOffset += chromaWidth * height;
-                        vPlane = _safeSubarray(currentOffset, chromaWidth * height);
+                        const chromaWidth = Math.floor(displayWidth / 2);
+                        if (dataToProcess.length < currentOffsetInSubarray + chromaWidth * displayHeight * 2) {
+                             console.warn(`Not enough data for U/V planes for ${format}. Data length: ${dataToProcess.length}, required: ${currentOffsetInSubarray + chromaWidth * displayHeight * 2}`);
+                        }
+                        uPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + chromaWidth * displayHeight);
+                        currentOffsetInSubarray += chromaWidth * displayHeight;
+                        vPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + chromaWidth * displayHeight);
                     } else if (format === 'YUV420p') {
-                        const chromaWidth = Math.floor(width / 2);
-                        const chromaHeight = Math.floor(height / 2);
-                        uPlane = _safeSubarray(currentOffset, chromaWidth * chromaHeight);
-                        currentOffset += chromaWidth * chromaHeight;
-                        vPlane = _safeSubarray(currentOffset, chromaWidth * chromaHeight);
+                        const chromaWidth = Math.floor(displayWidth / 2);
+                        const chromaHeight = Math.floor(displayHeight / 2);
+                        if (dataToProcess.length < currentOffsetInSubarray + chromaWidth * chromaHeight * 2) {
+                            console.warn(`Not enough data for U/V planes for ${format}. Data length: ${dataToProcess.length}, required: ${currentOffsetInSubarray + chromaWidth * chromaHeight * 2}`);
+                        }
+                        uPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + chromaWidth * chromaHeight);
+                        currentOffsetInSubarray += chromaWidth * chromaHeight;
+                        vPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + chromaWidth * chromaHeight);
                     } else if (format === 'NV12' || format === 'NV21') {
-                        uvPlane = _safeSubarray(currentOffset, width * Math.floor(height / 2));
+                        if (dataToProcess.length < currentOffsetInSubarray + displayWidth * Math.floor(displayHeight / 2)) {
+                            console.warn(`Not enough data for UV plane for ${format}. Data length: ${dataToProcess.length}, required: ${currentOffsetInSubarray + displayWidth * Math.floor(displayHeight / 2)}`);
+                        }
+                        uvPlane = dataToProcess.subarray(currentOffsetInSubarray, currentOffsetInSubarray + displayWidth * Math.floor(displayHeight / 2));
                     }
-                } catch (error) {
-                    alert(`Error slicing YUV planes: ${error.message}. Check file integrity or dimensions.`);
-                    return;
                 }
+            } catch (error) {
+                console.error(`Error initializing YUV planes for ${format}: ${error.message}`);
             }
 
-            for (let r = 0; r < height; r++) {
-                for (let c = 0; c < width; c++) {
-                    const canvasPixelIndex = (r * width + c) * 4;
-                    let R = 0, G = 0, B = 0, A = 255; // Default alpha to opaque
+            const imageData = ctx.createImageData(displayWidth, displayHeight);
+            const data = imageData.data;
 
-                    let rawDataOffset = 0;
-                    // For packed formats (RGB, Grayscale, YUYV, YVYU), calculate rawDataOffset directly
+            for (let r = 0; r < displayHeight; r++) {
+                for (let c = 0; c < displayWidth; c++) {
+                    const canvasPixelIndex = (r * displayWidth + c) * 4;
+                    let R = 0, G = 0, B = 0, A = 255;
+
+                    let rawDataOffsetRelative = 0;
                     if (!(format.startsWith('YUV') && format.endsWith('p') || format.startsWith('NV'))) {
-                        rawDataOffset = r * effectiveStride + c * bytesPerPixel;
-                        if (rawDataOffset + bytesPerPixel > rawDataUint8Array.length) {
-                            console.warn(`Read attempt beyond rawData length at row ${r}, col ${c} for format ${format}. Stopping current row processing.`);
-                            break; // Stop processing this row
+                        rawDataOffsetRelative = r * effectiveStride + c * bytesPerPixel;
+                        if (rawDataOffsetRelative + bytesPerPixel > dataToProcess.length) {
+                            data[canvasPixelIndex] = 0;
+                            data[canvasPixelIndex + 1] = 0;
+                            data[canvasPixelIndex + 2] = 0;
+                            data[canvasPixelIndex + 3] = 255;
+                            continue;
                         }
                     }
 
                     switch (format) {
                         case 'RGB':
-                            R = rawDataUint8Array[rawDataOffset];
-                            G = rawDataUint8Array[rawDataOffset + 1];
-                            B = rawDataUint8Array[rawDataOffset + 2];
+                            R = dataToProcess[rawDataOffsetRelative];
+                            G = dataToProcess[rawDataOffsetRelative + 1];
+                            B = dataToProcess[rawDataOffsetRelative + 2];
                             break;
                         case 'BGR':
-                            B = rawDataUint8Array[rawDataOffset];
-                            G = rawDataUint8Array[rawDataOffset + 1];
-                            R = rawDataUint8Array[rawDataOffset + 2];
+                            B = dataToProcess[rawDataOffsetRelative];
+                            G = dataToProcess[rawDataOffsetRelative + 1];
+                            R = dataToProcess[rawDataOffsetRelative + 2];
                             break;
                         case 'GBR':
-                            G = rawDataUint8Array[rawDataOffset];
-                            B = rawDataUint8Array[rawDataOffset + 1];
-                            R = rawDataUint8Array[rawDataOffset + 2];
+                            G = dataToProcess[rawDataOffsetRelative];
+                            B = dataToProcess[rawDataOffsetRelative + 1];
+                            R = dataToProcess[rawDataOffsetRelative + 2];
                             break;
                         case 'RGBA':
-                            R = rawDataUint8Array[rawDataOffset];
-                            G = rawDataUint8Array[rawDataOffset + 1];
-                            B = rawDataUint8Array[rawDataOffset + 2];
-                            A = rawDataUint8Array[rawDataOffset + 3];
+                            R = dataToProcess[rawDataOffsetRelative];
+                            G = dataToProcess[rawDataOffsetRelative + 1];
+                            B = dataToProcess[rawDataOffsetRelative + 2];
+                            A = dataToProcess[rawDataOffsetRelative + 3];
                             break;
                         case 'BGRA':
-                            B = rawDataUint8Array[rawDataOffset];
-                            G = rawDataUint8Array[rawDataOffset + 1];
-                            R = rawDataUint8Array[rawDataOffset + 2];
-                            A = rawDataUint8Array[rawDataOffset + 3];
+                            B = dataToProcess[rawDataOffsetRelative];
+                            G = dataToProcess[rawDataOffsetRelative + 1];
+                            R = dataToProcess[rawDataOffsetRelative + 2];
+                            A = dataToProcess[rawDataOffsetRelative + 3];
                             break;
                         case 'ARGB32':
-                            A = rawDataUint8Array[rawDataOffset];
-                            R = rawDataUint8Array[rawDataOffset + 1];
-                            G = rawDataUint8Array[rawDataOffset + 2];
-                            B = rawDataUint8Array[rawDataOffset + 3];
+                            A = dataToProcess[rawDataOffsetRelative];
+                            R = dataToProcess[rawDataOffsetRelative + 1];
+                            G = dataToProcess[rawDataOffsetRelative + 2];
+                            B = dataToProcess[rawDataOffsetRelative + 3];
                             break;
                         case 'ABGR32':
-                            A = rawDataUint8Array[rawDataOffset];
-                            B = rawDataUint8Array[rawDataOffset + 1];
-                            G = rawDataUint8Array[rawDataOffset + 2];
-                            R = rawDataUint8Array[rawDataOffset + 3];
+                            A = dataToProcess[rawDataOffsetRelative];
+                            B = dataToProcess[rawDataOffsetRelative + 1];
+                            G = dataToProcess[rawDataOffsetRelative + 2];
+                            R = dataToProcess[rawDataOffsetRelative + 3];
                             break;
                         case 'XRGB8888':
-                            R = rawDataUint8Array[rawDataOffset + 1];
-                            G = rawDataUint8Array[rawDataOffset + 2];
-                            B = rawDataUint8Array[rawDataOffset + 3];
-                            break; // A is ignored (X)
+                            R = dataToProcess[rawDataOffsetRelative + 1];
+                            G = dataToProcess[rawDataOffsetRelative + 2];
+                            B = dataToProcess[rawDataOffsetRelative + 3];
+                            break;
                         case 'Grayscale':
-                            R = G = B = rawDataUint8Array[rawDataOffset];
+                            R = G = B = dataToProcess[rawDataOffsetRelative];
                             break;
                         case 'RGB565': {
-                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            if (rawDataOffsetRelative + 1 >= dataToProcess.length) continue;
+                            const w = dataToProcess[rawDataOffsetRelative] | (dataToProcess[rawDataOffsetRelative + 1] << 8);
                             R = ((w >> 11) & 0x1F) * 255 / 31;
                             G = ((w >> 5) & 0x3F) * 255 / 63;
                             B = (w & 0x1F) * 255 / 31;
                             break;
                         }
                         case 'BGR565': {
-                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            if (rawDataOffsetRelative + 1 >= dataToProcess.length) continue;
+                            const w = dataToProcess[rawDataOffsetRelative] | (dataToProcess[rawDataOffsetRelative + 1] << 8);
                             B = ((w >> 11) & 0x1F) * 255 / 31;
                             G = ((w >> 5) & 0x3F) * 255 / 63;
                             R = (w & 0x1F) * 255 / 31;
                             break;
                         }
-                        case 'RGB555': { // Corresponds to XRGB1555 typically
-                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                        case 'RGB555': {
+                            if (rawDataOffsetRelative + 1 >= dataToProcess.length) continue;
+                            const w = dataToProcess[rawDataOffsetRelative] | (dataToProcess[rawDataOffsetRelative + 1] << 8);
                             R = ((w >> 10) & 0x1F) * 255 / 31;
                             G = ((w >> 5) & 0x1F) * 255 / 31;
                             B = (w & 0x1F) * 255 / 31;
-                            // A is bit 15, often ignored for RGB555, but in ARGB1555 it's the alpha
                             break;
                         }
                         case 'RGBA4444': {
-                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            if (rawDataOffsetRelative + 1 >= dataToProcess.length) continue;
+                            const w = dataToProcess[rawDataOffsetRelative] | (dataToProcess[rawDataOffsetRelative + 1] << 8);
                             R = (w & 0xF) * 255 / 15;
                             G = ((w >> 4) & 0xF) * 255 / 15;
                             B = ((w >> 8) & 0xF) * 255 / 15;
@@ -523,7 +606,8 @@
                             break;
                         }
                         case 'ARGB1555': {
-                            const w = rawDataUint8Array[rawDataOffset] | (rawDataUint8Array[rawDataOffset + 1] << 8);
+                            if (rawDataOffsetRelative + 1 >= dataToProcess.length) continue;
+                            const w = dataToProcess[rawDataOffsetRelative] | (dataToProcess[rawDataOffsetRelative + 1] << 8);
                             A = ((w >> 15) & 1) * 255;
                             R = ((w >> 10) & 0x1F) * 255 / 31;
                             G = ((w >> 5) & 0x1F) * 255 / 31;
@@ -531,7 +615,8 @@
                             break;
                         }
                         case 'YUV444p': {
-                            const yI = r * width + c;
+                            if (!yPlane || !uPlane || !vPlane || yPlane.length <= (r * displayWidth + c) || uPlane.length <= (r * displayWidth + c) || vPlane.length <= (r * displayWidth + c)) continue;
+                            const yI = r * displayWidth + c;
                             const Yv = yPlane[yI];
                             const Uv = uPlane[yI] - 128;
                             const Vv = vPlane[yI] - 128;
@@ -541,9 +626,12 @@
                             break;
                         }
                         case 'YUV422p': {
-                            const yI = r * width + c;
-                            const cX = Math.floor(c / 2); // Chroma X for YUV422 is at half resolution horizontally
-                            const uI = r * Math.floor(width / 2) + cX;
+                            if (!yPlane || !uPlane || !vPlane) continue;
+                            const yI = r * displayWidth + c;
+                            const cX = Math.floor(c / 2);
+                            const uI = r * Math.floor(displayWidth / 2) + cX;
+                            if (yPlane.length <= yI || uPlane.length <= uI || vPlane.length <= uI) continue;
+
                             const Yv = yPlane[yI];
                             const Uv = uPlane[uI] - 128;
                             const Vv = vPlane[uI] - 128;
@@ -553,10 +641,13 @@
                             break;
                         }
                         case 'YUV420p': {
-                            const yI = r * width + c;
-                            const cX = Math.floor(c / 2); // Chroma X for YUV420 is at half resolution horizontally
-                            const cY = Math.floor(r / 2); // Chroma Y for YUV420 is at half resolution vertically
-                            const uI = cY * Math.floor(width / 2) + cX;
+                            if (!yPlane || !uPlane || !vPlane) continue;
+                            const yI = r * displayWidth + c;
+                            const cX = Math.floor(c / 2);
+                            const cY = Math.floor(r / 2);
+                            const uI = cY * Math.floor(displayWidth / 2) + cX;
+                            if (yPlane.length <= yI || uPlane.length <= uI || vPlane.length <= uI) continue;
+
                             const Yv = yPlane[yI];
                             const Uv = uPlane[uI] - 128;
                             const Vv = vPlane[uI] - 128;
@@ -566,10 +657,13 @@
                             break;
                         }
                         case 'NV12': {
-                            const yI = r * width + c;
+                            if (!yPlane || !uvPlane) continue;
+                            const yI = r * displayWidth + c;
                             const cX = Math.floor(c / 2);
                             const cY = Math.floor(r / 2);
-                            const uvI = cY * width + cX * 2; // UV plane starts after Y, interleaved U then V
+                            const uvI = cY * displayWidth + cX * 2;
+                            if (yPlane.length <= yI || uvPlane.length <= uvI + 1) continue;
+
                             const Yv = yPlane[yI];
                             const Uv = uvPlane[uvI] - 128;
                             const Vv = uvPlane[uvI + 1] - 128;
@@ -579,10 +673,13 @@
                             break;
                         }
                         case 'NV21': {
-                            const yI = r * width + c;
+                            if (!yPlane || !uvPlane) continue;
+                            const yI = r * displayWidth + c;
                             const cX = Math.floor(c / 2);
                             const cY = Math.floor(r / 2);
-                            const vuI = cY * width + cX * 2; // VU plane starts after Y, interleaved V then U
+                            const vuI = cY * displayWidth + cX * 2;
+                            if (yPlane.length <= yI || uvPlane.length <= vuI + 1) continue;
+
                             const Yv = yPlane[yI];
                             const Vv = uvPlane[vuI] - 128;
                             const Uv = uvPlane[vuI + 1] - 128;
@@ -591,34 +688,38 @@
                             B = Yv + 1.772 * Uv;
                             break;
                         }
-                        case 'YUYV': { // Packed YUV422: Y0 U0 Y1 V0
-                            const rawDataOffset = r * effectiveStride + Math.floor(c / 2) * 4; // 4 bytes per 2 pixels
+                        case 'YUYV': {
+                            const rawDataOffsetRelative = r * effectiveStride + Math.floor(c / 2) * 4;
+                            if (rawDataOffsetRelative + 3 >= dataToProcess.length) continue;
+
                             let Yv, Uv, Vv;
-                            if (c % 2 === 0) { // First pixel of the pair (Y0)
-                                Yv = rawDataUint8Array[rawDataOffset];
-                                Uv = rawDataUint8Array[rawDataOffset + 1] - 128;
-                                Vv = rawDataUint8Array[rawDataOffset + 3] - 128;
-                            } else { // Second pixel of the pair (Y1)
-                                Yv = rawDataUint8Array[rawDataOffset + 2];
-                                Uv = rawDataUint8Array[rawDataOffset + 1] - 128;
-                                Vv = rawDataUint8Array[rawDataOffset + 3] - 128;
+                            if (c % 2 === 0) {
+                                Yv = dataToProcess[rawDataOffsetRelative];
+                                Uv = dataToProcess[rawDataOffsetRelative + 1] - 128;
+                                Vv = dataToProcess[rawDataOffsetRelative + 3] - 128;
+                            } else {
+                                Yv = dataToProcess[rawDataOffsetRelative + 2];
+                                Uv = dataToProcess[rawDataOffsetRelative + 1] - 128;
+                                Vv = dataToProcess[rawDataOffsetRelative + 3] - 128;
                             }
                             R = Yv + 1.402 * Vv;
                             G = Yv - 0.344136 * Uv - 0.714136 * Vv;
                             B = Yv + 1.772 * Uv;
                             break;
                         }
-                        case 'YVYU': { // Packed YUV422: Y0 V0 Y1 U0
-                            const rawDataOffset = r * effectiveStride + Math.floor(c / 2) * 4; // 4 bytes per 2 pixels
+                        case 'YVYU': {
+                            const rawDataOffsetRelative = r * effectiveStride + Math.floor(c / 2) * 4;
+                            if (rawDataOffsetRelative + 3 >= dataToProcess.length) continue;
+
                             let Yv, Uv, Vv;
-                            if (c % 2 === 0) { // First pixel of the pair (Y0)
-                                Yv = rawDataUint8Array[rawDataOffset];
-                                Vv = rawDataUint8Array[rawDataOffset + 1] - 128;
-                                Uv = rawDataUint8Array[rawDataOffset + 3] - 128;
-                            } else { // Second pixel of the pair (Y1)
-                                Yv = rawDataUint8Array[rawDataOffset + 2];
-                                Vv = rawDataUint8Array[rawDataOffset + 1] - 128;
-                                Uv = rawDataUint8Array[rawDataOffset + 3] - 128;
+                            if (c % 2 === 0) {
+                                Yv = dataToProcess[rawDataOffsetRelative];
+                                Vv = dataToProcess[rawDataOffsetRelative + 1] - 128;
+                                Uv = dataToProcess[rawDataOffsetRelative + 3] - 128;
+                            } else {
+                                Yv = dataToProcess[rawDataOffsetRelative + 2];
+                                Vv = dataToProcess[rawDataOffsetRelative + 1] - 128;
+                                Uv = dataToProcess[rawDataOffsetRelative + 3] - 128;
                             }
                             R = Yv + 1.402 * Vv;
                             G = Yv - 0.344136 * Uv - 0.714136 * Vv;
@@ -627,19 +728,17 @@
                         }
                         default:
                             console.error("Unhandled format in pixel loop:", format);
+                            data[canvasPixelIndex] = 0;
+                            data[canvasPixelIndex + 1] = 0;
+                            data[canvasPixelIndex + 2] = 0;
+                            data[canvasPixelIndex + 3] = 255;
                             continue;
                     }
 
-                    // Clamp values to 0-255 range and assign to imageData
                     data[canvasPixelIndex] = Math.max(0, Math.min(255, R));
                     data[canvasPixelIndex + 1] = Math.max(0, Math.min(255, G));
                     data[canvasPixelIndex + 2] = Math.max(0, Math.min(255, B));
                     data[canvasPixelIndex + 3] = Math.max(0, Math.min(255, A));
-                }
-                // Warn and break if going beyond raw data length for packed formats (non-planar YUV included here)
-                if ((format.includes('RGB') || format.includes('GRA') || format === 'Grayscale' || format.includes('565') || format.includes('555') || format.includes('4444') || format.includes('1555') || format === 'YUYV' || format === 'YVYU') && (r + 1) * effectiveStride > rawDataUint8Array.length && r < height - 1) {
-                    console.warn(`Stopping row processing early for ${format} at row ${r} due to insufficient data for the next stride. Data length: ${rawDataUint8Array.length}, effective stride: ${effectiveStride}`);
-                    break;
                 }
             }
             ctx.putImageData(imageData, 0, 0);
@@ -653,59 +752,81 @@
             const width = parseInt(widthInput.value, 10);
             const height = parseInt(heightInput.value, 10);
             const format = formatSelect.value;
-            const stride = parseInt(strideInput.value, 10); // Will be NaN if empty or invalid
+            const stride = parseInt(strideInput.value, 10);
+            const offset = parseInt(offsetInput.value, 10);
+            const zoom = parseInt(zoomInput.value, 10);
+
+            if (isNaN(offset) || offset < 0) {
+                 console.warn("Invalid offset entered. Defaulting to 0.");
+                 offsetInput.value = '0';
+                 currentImageOffset = 0;
+                 if (currentImageBuffer) {
+                    processImageData(currentImageBuffer, width, height, format, stride, 0, zoom);
+                 } else {
+                    canvas.width = 300; canvas.height = 150;
+                    canvas.style.width = '300px'; canvas.style.height = '150px';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'gray';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Please select an image file.', canvas.width / 2, canvas.height / 2);
+                 }
+                 return;
+            }
+            currentImageOffset = offset;
+
+            // Validate zoom level
+            const effectiveZoom = isNaN(zoom) || zoom < 10 || zoom > 800 ? 100 : zoom;
+            if (isNaN(zoom) || zoom < 10 || zoom > 800) {
+                console.warn(`Invalid zoom level (${zoom}) entered. Defaulting to 100%.`);
+                zoomInput.value = '100';
+            }
+            currentZoomLevel = effectiveZoom;
+
+            const effectiveWidth = isNaN(width) || width <= 0 ? 1 : width;
+            const effectiveHeight = isNaN(height) || height <= 0 ? 1 : height;
 
             if (isNaN(width) || width <= 0 || isNaN(height) || height <= 0) {
-                if (fileInput.files.length > 0 || currentImageBuffer) { // Only alert if there's a file or data
-                    alert('Please enter valid width and height (must be positive numbers).');
-                }
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'gray';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Enter valid dimensions.', canvas.width / 2, canvas.height / 2);
-                currentImageBuffer = null; // Clear buffer if dimensions are invalid
-                return;
+                console.warn(`Invalid width (${width}) or height (${height}) entered. Using ${effectiveWidth}x${effectiveHeight} for display.`);
             }
 
             if (fileInput.files.length > 0) {
-                // User has selected a new file
                 const file = fileInput.files[0];
                 const reader = new FileReader();
 
                 reader.onload = function(e) {
                     const newBuffer = new Uint8Array(e.target.result);
-                    // Update global state
                     currentImageBuffer = newBuffer;
-                    currentImageWidth = width;
-                    currentImageHeight = height;
+                    currentImageWidth = effectiveWidth;
+                    currentImageHeight = effectiveHeight;
                     currentImageFormat = format;
-                    currentImageStride = isNaN(stride) ? 0 : stride; // Store effective stride or 0 if derived
+                    currentImageStride = isNaN(stride) ? 0 : stride;
 
-                    processImageData(currentImageBuffer, currentImageWidth, currentImageHeight, currentImageFormat, currentImageStride);
-                    // fileInput.value = ''; // REMOVED: Keep file name visible
+                    processImageData(currentImageBuffer, currentImageWidth, currentImageHeight, currentImageFormat, currentImageStride, currentImageOffset, currentZoomLevel);
                 };
 
                 reader.onerror = function() {
-                    alert('Error reading file. Please check the file and permissions.');
+                    console.error('Error reading file. Please check the file and permissions.');
+                    canvas.width = 300; canvas.height = 150;
+                    canvas.style.width = '300px'; canvas.style.height = '150px';
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.fillStyle = 'red';
                     ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
                     ctx.fillText('Error reading file.', canvas.width / 2, canvas.height / 2);
-                    currentImageBuffer = null; // Clear state on error
+                    currentImageBuffer = null;
                 };
                 reader.readAsArrayBuffer(file);
             } else if (currentImageBuffer) {
-                // No new file selected, but we have a current buffer (default or previous upload)
-                // Reprocess currentImageBuffer with potentially updated parameters from input fields
-                currentImageWidth = width;
-                currentImageHeight = height;
+                currentImageWidth = effectiveWidth;
+                currentImageHeight = effectiveHeight;
                 currentImageFormat = format;
-                currentImageStride = isNaN(stride) ? 0 : stride; // Store effective stride or 0 if derived
+                currentImageStride = isNaN(stride) ? 0 : stride;
 
-                processImageData(currentImageBuffer, currentImageWidth, currentImageHeight, currentImageFormat, currentImageStride);
+                processImageData(currentImageBuffer, currentImageWidth, currentImageHeight, currentImageFormat, currentImageStride, currentImageOffset, currentZoomLevel);
             } else {
-                // No file in fileInput and no currentImageBuffer (e.g. default load failed and no user file yet)
+                canvas.width = 300; canvas.height = 150;
+                canvas.style.width = '300px'; canvas.style.height = '150px';
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = 'gray';
                 ctx.font = '16px Arial';
@@ -714,12 +835,49 @@
             }
         }
 
+        // --- Mouse Event Handlers ---
+        canvas.addEventListener('mousemove', function(e) {
+            if (!currentImageBuffer || canvas.width <= 0 || canvas.height <= 0) {
+                pixelInfo.style.display = 'none';
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const displayedWidth = rect.width;
+            const displayedHeight = rect.height;
+
+            const scaleX = canvas.width / displayedWidth;
+            const scaleY = canvas.height / displayedHeight;
+
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+
+            if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+                const pixel = ctx.getImageData(x, y, 1, 1).data;
+                const r = pixel[0];
+                const g = pixel[1];
+                const b = pixel[2];
+                const a = pixel[3];
+
+                pixelInfo.textContent = `X: ${x}, Y: ${y} | RGB: (${r}, ${g}, ${b})${a !== 255 ? `, A: ${a}` : ''}`;
+                pixelInfo.style.display = 'block';
+
+            } else {
+                pixelInfo.style.display = 'none';
+            }
+        });
+
+        canvas.addEventListener('mouseout', function() {
+            pixelInfo.style.display = 'none';
+        });
+
         // --- Event Listeners ---
         fileInput.addEventListener('change', () => {
-            // When a new file is selected, reset width/height to 1 to allow re-evaluation
-            widthInput.value = '1';
-            heightInput.value = '1';
-            strideInput.value = ''; // Clear stride as it might be irrelevant for new file
+            widthInput.value = '';
+            heightInput.value = '';
+            strideInput.value = '';
+            offsetInput.value = '0';
+            zoomInput.value = '100'; // Reset zoom on new file
             displayImage();
         });
 
@@ -727,6 +885,8 @@
         widthInput.addEventListener('input', displayImage);
         heightInput.addEventListener('input', displayImage);
         strideInput.addEventListener('input', displayImage);
+        offsetInput.addEventListener('input', displayImage);
+        zoomInput.addEventListener('input', displayImage); // Listen for zoom changes
 
         // Load default YUV image when the DOM is fully loaded
         window.addEventListener('DOMContentLoaded', loadDefaultYUV);
